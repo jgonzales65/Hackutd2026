@@ -15,10 +15,15 @@ export type Parcel = {
   address: string;
   zip: string;
   owner: string;
-  score: number;
-  breakdown: { flood: number; title: number; permits: number; zoning: number };
+  score: number | null;
+  breakdown: { flood: number | null; title: number | null; permits: number | null; zoning: number | null };
   findings: Finding[];
   coordinates: [number, number][][];
+  geometry?: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+  flood?: { available: boolean; coverageComplete: boolean; matches: {
+    zone: string; subtype: string | null; sfha: boolean | null;
+    source: string; citation: string | null; retrievedAt: string;
+  }[] };
   records?: RecordAddress[];
   listingPin?: [number, number];
 };

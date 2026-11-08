@@ -2,7 +2,8 @@ import type { Parcel } from "./types";
 
 export const RAMP = ["#8d9d90", "#b48a2c", "#d9381e", "#5a1409"];
 
-export function level(score: number) {
+export function level(score: number | null) {
+  if (score === null) return { label: "Not assessed", color: "#64748b" };
   if (score >= 80) return { label: "Critical", color: RAMP[3] };
   if (score >= 60) return { label: "High", color: RAMP[2] };
   if (score >= 30) return { label: "Moderate", color: RAMP[1] };
@@ -10,6 +11,7 @@ export function level(score: number) {
 }
 
 export function verdict(p: Parcel) {
+  if (p.score === null) return "Overall risk has not been assessed. Missing information does not establish absence of risk.";
   const lv = level(p.score).label;
   const top = p.findings[0];
   if (!top) return `${lv} risk. We found nothing that should hold up a purchase.`;

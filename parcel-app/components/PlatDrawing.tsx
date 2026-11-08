@@ -97,6 +97,7 @@ export default function PlatDrawing({ parcel }: { parcel: Parcel }) {
       </svg>
       <figcaption className="mt-1 text-xs text-soft">
         Boundary drawn from county record geometry. Not a survey.
+        {parcel.geometry?.type === "MultiPolygon" && parcel.geometry.coordinates.length > 1 && " Sketch shows the first polygon; the map shows all components."}
       </figcaption>
     </figure>
   );

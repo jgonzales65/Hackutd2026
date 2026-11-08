@@ -13,9 +13,10 @@ const LABELS = {
 
 const head = "mt-10 border-b border-line pb-1 font-serif text-xl italic";
 
-function Stamp({ score }: { score: number }) {
+function Stamp({ score }: { score: number | null }) {
   const [text, color] =
-    score < 30 ? ["Clear to close", "#8d9d90"]
+    score === null ? ["Not assessed", "#64748b"]
+    : score < 30 ? ["Clear to close", "#8d9d90"]
     : score < 60 ? ["Conditions apply", "#b48a2c"]
     : score < 80 ? ["Hold: cure first", "#d9381e"]
     : ["Do not proceed", "#5a1409"];
@@ -59,7 +60,7 @@ export default function Scorecard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-soft">
-            File no. {parcel.id} · ZIP {parcel.zip}
+            File no. {parcel.id} · ZIP {parcel.zip || "unavailable"}
           </p>
           <h2 className="font-serif text-4xl leading-none">{parcel.address}</h2>
           <p className="mt-1 text-soft">Record owner: {parcel.owner}</p>
@@ -70,14 +71,14 @@ export default function Scorecard({
       <PlatDrawing parcel={parcel} />
 
       <div className="mt-4 flex items-baseline gap-3">
-        <span className="font-serif text-8xl leading-none tabular-nums">{parcel.score}</span>
-        <span className="text-soft">out of 100</span>
+        <span className="font-serif text-8xl leading-none tabular-nums">{parcel.score ?? "—"}</span>
+        <span className="text-soft">{parcel.score === null ? "Not assessed" : "out of 100"}</span>
         <span className="ml-auto flex items-center gap-2 font-medium">
           <i
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ background: lv.color }}
           />
-          {lv.label} risk
+          {lv.label}{parcel.score === null ? "" : " risk"}
         </span>
       </div>
       <p className="mt-3 leading-relaxed">{verdict(parcel)}</p>
@@ -91,19 +92,19 @@ export default function Scorecard({
               <span
                 className="block h-1"
                 style={{
-                  width: `${parcel.breakdown[k]}%`,
+                  width: `${parcel.breakdown[k] ?? 0}%`,
                   background: level(parcel.breakdown[k]).color,
                 }}
               />
             </span>
-            <span className="w-6 text-right tabular-nums">{parcel.breakdown[k]}</span>
+            <span className="w-6 text-right tabular-nums">{parcel.breakdown[k] ?? "—"}</span>
           </li>
         ))}
       </ul>
 
       <h3 className={head}>Exceptions to clear title</h3>
       {parcel.findings.length === 0 ? (
-        <p className="py-2 text-sm text-soft">Nothing above the alert level.</p>
+        <p className="py-2 text-sm text-soft">No title or permit assessment available.</p>
       ) : (
         parcel.findings.map((f) => (
           <div key={f.text} className="border-b border-line py-3">
@@ -124,6 +125,19 @@ export default function Scorecard({
         ))
       )}
 
+      {parcel.flood && <section>
+        <h3 className={head}>FEMA mapped flood zones</h3>
+        <p className="mt-2 text-sm">{!parcel.flood.available ? "Flood data unavailable."
+          : parcel.flood.matches.length === 0 ? "No match in the pilot dataset. Flood overlap is unknown."
+          : "Mapped zone intersections found. Pilot coverage is incomplete."}</p>
+        {parcel.flood.matches.map((m, i) => <div key={i} className="border-b border-line py-2 text-sm">
+          <p>Zone {m.zone}{m.subtype ? ` · ${m.subtype}` : ""}</p>
+          <p>{m.sfha === true ? "Special Flood Hazard Area overlap confirmed." : "This zone alone does not confirm a Special Flood Hazard Area overlap."}</p>
+          <a href={m.source} target="_blank" rel="noreferrer" className="text-accent underline">FEMA NFHL · {m.citation || "source"}</a>
+          <p className="text-soft">Retrieved: {new Date(m.retrievedAt).toLocaleDateString()}</p>
+        </div>)}
+        <p className="mt-2 text-xs text-soft">Boundary contact counts as intersection. Missing matches do not mean no flood risk. No probability or financial loss is estimated.</p>
+      </section>}
       <LocationProof parcel={parcel} />
       <ClosingPath key={parcel.id} parcel={parcel} />
 
