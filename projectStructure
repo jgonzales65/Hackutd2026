@@ -1,0 +1,8 @@
+backend/
+├── analytics/
+│   ├── risk_engine.py       # Composite Risk Scoring Engine
+│   └── capex_calculator.py  # Financial Impact & Adjusted Value Model
+├── ml/
+│   └── failure_model.py     # XGBoost Predictive Failure Model
+└── database/
+    └── graph_queries.sql    # PostGIS Relational Graph / Recursive Traversals
