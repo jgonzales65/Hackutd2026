@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { database } from '@/lib/db';
+import { assessFlood } from '@/lib/flood-scoring';
 
 
 export async function GET(request: Request) {
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
     const floodAvailable = available.rows[0].available;
     const result = await client.query(`
       SELECT p.parcel_id, p.formatted_address, ST_AsGeoJSON(p.geom)::json AS geometry,
+        ${floodAvailable ? `(SELECT COALESCE(ST_CoveredBy(p.geom,ST_UnaryUnion(ST_Collect(z.geom))),false)
+          FROM public.fema_flood_zones z WHERE ST_Intersects(p.geom,z.geom))` : 'false'} AS parcel_covered,
         ${floodAvailable ? `(SELECT COALESCE(json_agg(json_build_object(
           'zone',z.flood_zone,'subtype',z.zone_subtype,'sfha',z.sfha,
           'source',z.source_url,'citation',z.source_citation,'retrievedAt',z.retrieved_at)
@@ -30,14 +33,19 @@ export async function GET(request: Request) {
         WHERE ${id ? 'parcel_id=$1' : 'geom && ST_MakeEnvelope($1,$2,$3,$4,4326) AND ST_Intersects(geom,ST_MakeEnvelope($1,$2,$3,$4,4326))'}
         ORDER BY parcel_id LIMIT 501) p`, id ? [id] : bbox);
     await client.query('COMMIT');
-    const parcels = result.rows.slice(0,500).map(row => ({
+    const parcels = result.rows.slice(0,500).map(row => {
+      const assessment = assessFlood(row.flood, floodAvailable, row.parcel_covered);
+      return ({
       id: row.parcel_id, address: row.formatted_address, zip: '', owner: 'Not available',
-      score: null, breakdown: { flood: null, title: null, permits: null, zoning: null },
-      findings: [], geometry: row.geometry,
+      score: null, assessment, breakdown: { environmental: null, financial: null, flood: assessment.score, title: null, permits: null, zoning: null },
+      findings: assessment.score !== null && assessment.score >= 25 ? [{ category: 'Flood',
+        text: `FEMA mapped flood hazard: ${assessment.score}/100 (flood only)`,
+        confidence: 'High', source: 'FEMA NFHL polygon intersection',
+        impact: assessment.explanation }] : [], geometry: row.geometry,
       // Existing boundary sketch uses the first component; map uses the full geometry.
       coordinates: row.geometry.type === 'MultiPolygon' ? row.geometry.coordinates[0] : row.geometry.coordinates,
       flood: { available: floodAvailable, coverageComplete: false, matches: row.flood },
-    }));
+    }); });
     return NextResponse.json({ parcels, truncated: result.rows.length > 500, limit: 500 },
       { headers: { 'Cache-Control': 'no-store' } });
   } catch {

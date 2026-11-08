@@ -1,3 +1,4 @@
+import type { assessFlood } from './flood-scoring';
 export type Finding = {
   category: string;
   text: string;
@@ -16,7 +17,8 @@ export type Parcel = {
   zip: string;
   owner: string;
   score: number | null;
-  breakdown: { flood: number | null; title: number | null; permits: number | null; zoning: number | null };
+  assessment?: ReturnType<typeof assessFlood>;
+  breakdown: { environmental: number | null; financial: number | null; flood: number | null; title: number | null; permits: number | null; zoning: number | null };
   findings: Finding[];
   coordinates: [number, number][][];
   geometry?: GeoJSON.Polygon | GeoJSON.MultiPolygon;
