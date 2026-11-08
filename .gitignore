@@ -17,3 +17,8 @@ dist/
 # OS Files
 .DS_Store
 Thumbs.db
+# Local ingestion state and downloaded datasets
+.env.*
+!.env.example
+backend/ingestion/.state/
+backend/ingestion/data/
