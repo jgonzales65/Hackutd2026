@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Parcel } from "@/lib/types";
+import { displayScore } from "@/lib/risk";
 import { centroid } from "@/lib/geo";
 
 export default function ParcelMap({
@@ -76,7 +77,7 @@ export default function ParcelMap({
         source: "parcels",
         paint: {
           "fill-opacity": 0.78,
-          "fill-color": ["case", ["<", ["coalesce", ["get", "score"], -1], 0], "#64748b", ["step", ["get", "score"], "#8d9d90", 30, "#b48a2c", 60, "#d9381e", 80, "#5a1409"]],
+          "fill-color": ["case", ["<", ["coalesce", ["get", "score"], -1], 0], "#64748b", ["step", ["get", "score"], "#8d9d90", 25, "#b48a2c", 50, "#d9381e", 75, "#5a1409"]],
         },
       });
       map.addLayer({
@@ -140,7 +141,7 @@ export default function ParcelMap({
       features: parcels.map((p) => ({
         type: "Feature" as const,
         geometry: p.geometry ?? { type: "Polygon" as const, coordinates: p.coordinates },
-        properties: { id: p.id, score: p.score },
+        properties: { id: p.id, score: displayScore(p) },
       })),
     });
   }, [parcels, ready]);

@@ -1,5 +1,5 @@
 import type { Parcel } from "@/lib/types";
-import { level } from "@/lib/risk";
+import { level, displayScore } from "@/lib/risk";
 
 export default function PlatDrawing({ parcel }: { parcel: Parcel }) {
   // Corners of the parcel (the last point repeats the first, so drop it)
@@ -32,7 +32,7 @@ export default function PlatDrawing({ parcel }: { parcel: Parcel }) {
   };
   const feet = (a: number, b: number) =>
     Math.round(Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]) * 3.281);
-  const color = level(parcel.score).color;
+  const color = level(displayScore(parcel)).color;
 
   return (
     <figure className="mt-4">

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { Parcel } from "@/lib/types";
-import { level } from "@/lib/risk";
+import { level, displayScore } from "@/lib/risk";
 
 export default function ParcelTable({
   parcels, selectedId, minScore, onSelect,
@@ -13,8 +13,8 @@ export default function ParcelTable({
 }) {
   const [asc, setAsc] = useState(false);
   const rows = parcels
-    .filter((p) => minScore === 0 || (p.score !== null && p.score >= minScore))
-    .sort((a, b) => (asc ? (a.score ?? -1) - (b.score ?? -1) : (b.score ?? -1) - (a.score ?? -1)));
+    .filter((p) => minScore === 0 || (displayScore(p) !== null && displayScore(p)! >= minScore))
+    .sort((a, b) => (asc ? (displayScore(a) ?? -1) - (displayScore(b) ?? -1) : (displayScore(b) ?? -1) - (displayScore(a) ?? -1)));
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-panel">
@@ -38,7 +38,7 @@ export default function ParcelTable({
           </thead>
           <tbody>
             {rows.map((p) => {
-              const lv = level(p.score);
+              const lv = level(displayScore(p));
               return (
                 <tr
                   key={p.id}
@@ -51,9 +51,9 @@ export default function ParcelTable({
                   <td className="px-2 py-2 text-soft">{p.owner}</td>
                   <td className="px-2 py-2 whitespace-nowrap">
                     <i className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: lv.color }} />
-                    <span className="tabular-nums">{p.score ?? "—"}</span> {lv.label}
+                    <span className="tabular-nums">{displayScore(p) ?? "—"}</span> {lv.label}{p.score === null && p.assessment?.score != null ? " · flood only" : ""}
                   </td>
-                  <td className="px-2 py-2 text-soft">{p.findings[0]?.text ?? "Not assessed"}</td>
+                  <td className="px-2 py-2 text-soft">{p.findings[0]?.text ?? (p.assessment?.score != null ? "FEMA mapped flood severity (flood only)" : "Not assessed")}</td>
                 </tr>
               );
             })}

@@ -86,8 +86,8 @@ export default function Home() {
           <select value={minScore} onChange={(e) => setMinScore(+e.target.value)}
             className="rounded-sm border border-line bg-panel px-2 py-1">
             <option value={0}>All parcels</option>
-            <option value={30}>Moderate risk and above</option>
-            <option value={60}>High risk and above</option>
+            <option value={25}>Moderate risk and above</option>
+            <option value={50}>High risk and above</option>
           </select>
         </label>
       </header>
@@ -108,6 +108,7 @@ export default function Home() {
                   <i className="inline-block h-2.5 w-2.5" style={{ background: c }} />{t}
                 </span>
               ))}
+              <span>Flood-only where scored</span>
             </p>
           </div>
           <ParcelTable parcels={parcels} selectedId={selectedId} minScore={minScore} onSelect={selectParcel} />

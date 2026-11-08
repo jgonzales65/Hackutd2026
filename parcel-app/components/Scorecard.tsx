@@ -1,11 +1,13 @@
 import type { Parcel } from "@/lib/types";
-import { level, verdict } from "@/lib/risk";
+import { level, verdict, displayScore } from "@/lib/risk";
 import LocationProof from "./LocationProof";
 import ClosingPath from "./ClosingPath";
 import PlatDrawing from "./PlatDrawing";
 
 const LABELS = {
-  flood: "Flood and environment",
+  flood: "Flood (FEMA)",
+  environmental: "Other environmental hazards",
+  financial: "Financial / property",
   title: "Title and liens",
   permits: "Permits",
   zoning: "Zoning",
@@ -14,12 +16,7 @@ const LABELS = {
 const head = "mt-10 border-b border-line pb-1 font-serif text-xl italic";
 
 function Stamp({ score }: { score: number | null }) {
-  const [text, color] =
-    score === null ? ["Not assessed", "#64748b"]
-    : score < 30 ? ["Clear to close", "#8d9d90"]
-    : score < 60 ? ["Conditions apply", "#b48a2c"]
-    : score < 80 ? ["Hold: cure first", "#d9381e"]
-    : ["Do not proceed", "#5a1409"];
+  const { label: text, color } = level(score);
   return (
     <span
       className="inline-block shrink-0 -rotate-3 border-2 px-2 py-1 text-center text-xs font-bold uppercase leading-tight tracking-widest"
@@ -53,7 +50,8 @@ export default function Scorecard({
     );
   }
 
-  const lv = level(parcel.score);
+  const score = displayScore(parcel);
+  const lv = level(score);
 
   return (
     <article>
@@ -65,20 +63,20 @@ export default function Scorecard({
           <h2 className="font-serif text-4xl leading-none">{parcel.address}</h2>
           <p className="mt-1 text-soft">Record owner: {parcel.owner}</p>
         </div>
-        <Stamp score={parcel.score} />
+        <Stamp score={score} />
       </div>
 
       <PlatDrawing parcel={parcel} />
 
       <div className="mt-4 flex items-baseline gap-3">
-        <span className="font-serif text-8xl leading-none tabular-nums">{parcel.score ?? "—"}</span>
-        <span className="text-soft">{parcel.score === null ? "Not assessed" : "out of 100"}</span>
+        <span className="font-serif text-8xl leading-none tabular-nums">{score ?? "—"}</span>
+        <span className="text-soft">{score === null ? "Not assessed" : parcel.score === null ? "Flood severity / 100" : "Overall / 100"}</span>
         <span className="ml-auto flex items-center gap-2 font-medium">
           <i
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ background: lv.color }}
           />
-          {lv.label}{parcel.score === null ? "" : " risk"}
+          {lv.label}{score === null ? "" : parcel.score === null ? " flood severity" : " risk"}
         </span>
       </div>
       <p className="mt-3 leading-relaxed">{verdict(parcel)}</p>
@@ -102,7 +100,12 @@ export default function Scorecard({
         ))}
       </ul>
 
-      <h3 className={head}>Exceptions to clear title</h3>
+      {parcel.assessment && <div className="mt-3 text-sm text-soft">
+        <p>Overall risk: not assessed. Missing assessments: {parcel.assessment.missingCategories.join(", ")}.</p>
+        <p>Method: {parcel.assessment.method} · {parcel.assessment.status.replaceAll("_", " ")}</p>
+        <p>Preliminary application severity index. Not an official FEMA or insurance rating, probability, or loss estimate.</p>
+      </div>}
+      <h3 className={head}>Verified findings</h3>
       {parcel.findings.length === 0 ? (
         <p className="py-2 text-sm text-soft">No title or permit assessment available.</p>
       ) : (

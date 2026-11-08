@@ -60,7 +60,7 @@ Empty views, loading, retryable API errors, and map resource errors have explici
 
 Existing `public.fema_flood_zones` data is included when available, with FEMA zones, subtypes,
 SFHA flags, source citations and retrieval dates. Pilot coverage remains incomplete: no match
-means unknown flood overlap. Missing owner, ZIP, overall scores and category scores are shown
+means unknown flood overlap. Missing owner, ZIP, overall scores and unsupported category scores are shown
 as unavailable/unassessed, without fabricated risk numbers or closing recommendations.
 The existing score filters only include parcels with known scores, so unassessed parcels appear
 under “All parcels.” The basemap still uses the original MapLibre/OpenStreetMap configuration;
@@ -69,3 +69,12 @@ MapLibre is pinned to exactly 4.7.1.
 Verification: `npm run build`; from repository root,
 `RUN_FLOOD_DB_TESTS=1 backend/.venv/bin/python -m unittest discover -s backend/tests -v`.
 A live HTTP check of `/api/parcels?id=100445` should show an actual address and FEMA AE match.
+
+
+## Evidence-based flood severity
+
+The UI now displays a preliminary **flood-only** score when supported by imported FEMA
+classifications. Overall property risk remains unassessed. Full mapped parcel coverage is
+required for Low; partial positive hazards are minimum observed severity. See
+[RISK_SCORING.md](./RISK_SCORING.md) for rules, data limitations, source links, and real demo IDs.
+Tests: `node --test tests/flood-scoring.test.mjs` (Node 22.18+).
