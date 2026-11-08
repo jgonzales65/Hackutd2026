@@ -1,0 +1,11 @@
+property_id, name, address, city, lat, lon, property_type, assessed_value
+BEX-1001, Sunset Ridge, 1247 Willow Creek Dr, San Antonio, 29.5034, -98.4802, single_family, 342500
+BEX-1002, Mission Oaks, 812 E Elm St, San Antonio, 29.4268, -98.4954, multifamily, 875000
+BEX-1003, Riverfront Plaza, 2100 N St Marys St, San Antonio, 29.4324, -98.4897, commercial, 2140000
+BEX-1004, Canyon View Condos, 6801 NW Loop 410, San Antonio, 29.5712, -98.6031, condo, 482000
+BEX-1005, Heritage Acres, 11822 Scenic Loop Rd, Helotes, 29.5968, -98.6907, single_family, 615000
+BEX-1006, Alamo Heights Townhomes, 4310 Broadway St, Alamo Heights, 29.4851, -98.4604, townhouse, 734000
+BEX-1007, Stonegate Estates, 3321 Stone Oak Pkwy, San Antonio, 29.6195, -98.5104, single_family, 728000
+BEX-1008, South Park Apartments, 815 E Basse Rd, San Antonio, 29.4627, -98.5563, multifamily, 1265000
+BEX-1009, West End Retail, 2414 Wurzbach Rd, San Antonio, 29.5002, -98.5861, commercial, 1840000
+BEX-1010, Northside Villas, 18909 Hardy Oak Blvd, San Antonio, 29.6138, -98.5989, townhouse, 612000
