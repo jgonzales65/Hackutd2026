@@ -7,7 +7,7 @@ const money = (n: number) => "$" + n.toLocaleString();
 export default function ClosingPath({ parcel }: { parcel: Parcel }) {
   const [chosen, setChosen] = useState<string[]>([]);
   const steps = parcel.findings.filter((f) => f.cure);
-  if (steps.length === 0) return null;
+  if (steps.length === 0 || parcel.score === null) return null;
 
   const picked = steps.filter((f) => chosen.includes(f.text));
   const cost = picked.reduce((a, f) => a + f.cure!.cost, 0);

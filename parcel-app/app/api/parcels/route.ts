@@ -1,50 +1,47 @@
-import { NextResponse } from "next/server";
-import type { Parcel } from "@/lib/types";
+import { NextResponse } from 'next/server';
+import { database } from '@/lib/db';
 
-const sq = (lng: number, lat: number, s = 0.0015): [number, number][][] => [
-  [[lng, lat], [lng + s, lat], [lng + s, lat + s], [lng, lat + s], [lng, lat]],
-];
 
-const parcels: Parcel[] = [
-  {
-    id: "P-101", address: "1420 McKinney Ave", zip: "75204", owner: "Harlan Row Holdings LLC",
-    score: 72, breakdown: { flood: 85, title: 80, permits: 40, zoning: 30 },
-    findings: [
-      { category: "Flood", text: "In FEMA 100-year floodplain", confidence: "High",
-        source: "FEMA flood map", impact: "Lenders require flood insurance, which adds yearly cost and can delay closing." },
-      { category: "Title", text: "Open contractor lien found", confidence: "Medium",
-        source: "County clerk PDF (AI-parsed)", impact: "An unpaid lien can block closing or pass the debt to the buyer." },
-    ],
-    coordinates: sq(-96.801, 32.78),
-  },
-  {
-    id: "P-102", address: "1500 McKinney Ave", zip: "75204", owner: "Cedar Ridge Partners",
-    score: 35, breakdown: { flood: 20, title: 25, permits: 65, zoning: 15 },
-    findings: [
-      { category: "Permits", text: "Permit expired without sign-off", confidence: "Medium",
-        source: "City permit portal", impact: "Unpermitted work may need rework before the building can be occupied." },
-    ],
-    coordinates: sq(-96.799, 32.78),
-  },
-  {
-    id: "P-103", address: "1420 Main St", zip: "75202", owner: "Alder Land Trust",
-    score: 18, breakdown: { flood: 10, title: 15, permits: 20, zoning: 10 },
-    findings: [],
-    coordinates: sq(-96.801, 32.778),
-  },
-  {
-    id: "P-104", address: "1500 Main St", zip: "75202", owner: "Harlan Row Holdings LLC",
-    score: 55, breakdown: { flood: 25, title: 70, permits: 30, zoning: 65 },
-    findings: [
-      { category: "Zoning", text: "Zoning may not allow the planned use", confidence: "Low",
-        source: "Zoning notice PDF (AI-parsed)", impact: "If the use is not allowed, the project can stall until a variance is granted." },
-      { category: "Title", text: "Owner also holds P-101, which has an open lien", confidence: "Medium",
-        source: "Ownership graph", impact: "Linked liens can complicate negotiations and closing." },
-    ],
-    coordinates: sq(-96.799, 32.778),
-  },
-];
-
-export async function GET() {
-  return NextResponse.json(parcels);
+export async function GET(request: Request) {
+  const params = new URL(request.url).searchParams;
+  const id = params.get('id');
+  const raw = params.get('bbox')?.split(',');
+  const bbox = raw?.map(Number);
+  if (id ? !/^\d{1,50}$/.test(id) : !bbox || bbox.length !== 4 || raw?.some(v => !v.trim()) ||
+      bbox.some(v => !Number.isFinite(v)) || bbox[0] < -180 || bbox[2] > 180 ||
+      bbox[1] < -90 || bbox[3] > 90 || bbox[0] >= bbox[2] || bbox[1] >= bbox[3] ||
+      bbox[2] - bbox[0] > 2 || bbox[3] - bbox[1] > 2) {
+    return NextResponse.json({ error: 'Supply a valid bbox=west,south,east,north (maximum 2 degrees), or numeric parcel id.' }, { status: 400 });
+  }
+  let client;
+  try {
+    client = await database().connect();
+    await client.query('BEGIN READ ONLY');
+    const available = await client.query("SELECT to_regclass('public.fema_flood_zones') IS NOT NULL AS available");
+    const floodAvailable = available.rows[0].available;
+    const result = await client.query(`
+      SELECT p.parcel_id, p.formatted_address, ST_AsGeoJSON(p.geom)::json AS geometry,
+        ${floodAvailable ? `(SELECT COALESCE(json_agg(json_build_object(
+          'zone',z.flood_zone,'subtype',z.zone_subtype,'sfha',z.sfha,
+          'source',z.source_url,'citation',z.source_citation,'retrievedAt',z.retrieved_at)
+          ORDER BY z.object_id),'[]'::json)
+          FROM public.fema_flood_zones z WHERE ST_Intersects(p.geom,z.geom))` : `'[]'::json`} AS flood
+      FROM (SELECT parcel_id,formatted_address,geom FROM public.parcels
+        WHERE ${id ? 'parcel_id=$1' : 'geom && ST_MakeEnvelope($1,$2,$3,$4,4326) AND ST_Intersects(geom,ST_MakeEnvelope($1,$2,$3,$4,4326))'}
+        ORDER BY parcel_id LIMIT 501) p`, id ? [id] : bbox);
+    await client.query('COMMIT');
+    const parcels = result.rows.slice(0,500).map(row => ({
+      id: row.parcel_id, address: row.formatted_address, zip: '', owner: 'Not available',
+      score: null, breakdown: { flood: null, title: null, permits: null, zoning: null },
+      findings: [], geometry: row.geometry,
+      // Existing boundary sketch uses the first component; map uses the full geometry.
+      coordinates: row.geometry.type === 'MultiPolygon' ? row.geometry.coordinates[0] : row.geometry.coordinates,
+      flood: { available: floodAvailable, coverageComplete: false, matches: row.flood },
+    }));
+    return NextResponse.json({ parcels, truncated: result.rows.length > 500, limit: 500 },
+      { headers: { 'Cache-Control': 'no-store' } });
+  } catch {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    return NextResponse.json({ error: 'Parcel data unavailable. Check the server database connection and retry.' }, { status: 503 });
+  } finally { client?.release(); }
 }

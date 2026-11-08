@@ -6,8 +6,10 @@ import type { Parcel } from "@/lib/types";
 import { centroid } from "@/lib/geo";
 
 export default function ParcelMap({
-  parcels, selectedId, minScore, onSelect,
+  parcels, selectedId, minScore, onSelect, onBoundsChange, onError,
 }: {
+  onBoundsChange: (bbox: string) => void;
+  onError: (message: string) => void;
   parcels: Parcel[];
   selectedId: string | null;
   minScore: number;
@@ -16,16 +18,21 @@ export default function ParcelMap({
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
-  onSelectRef.current = onSelect;
+  const boundsRef = useRef(onBoundsChange);
+  const errorRef = useRef(onError);
   const [ready, setReady] = useState(false);
+  const lastFocused = useRef<string | null>(null);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { boundsRef.current = onBoundsChange; }, [onBoundsChange]);
+  useEffect(() => { errorRef.current = onError; }, [onError]);
 
   // Create the map once
   useEffect(() => {
     if (!container.current) return;
     const map = new maplibregl.Map({
       container: container.current,
-      center: [-96.8015, 32.779],
-      zoom: 15,
+      center: [-98.4965, 29.4263],
+      zoom: 13,
       style: {
         version: 8,
         sources: {
@@ -53,6 +60,12 @@ export default function ParcelMap({
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     mapRef.current = map;
+    const reportBounds = () => {
+      const b = map.getBounds();
+      boundsRef.current([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(","));
+    };
+    map.on("moveend", reportBounds);
+    map.on("error", () => errorRef.current("A map resource could not load. Check your network connection."));
 
     map.on("load", () => {
       // Parcels
@@ -63,7 +76,7 @@ export default function ParcelMap({
         source: "parcels",
         paint: {
           "fill-opacity": 0.78,
-          "fill-color": ["step", ["get", "score"], "#8d9d90", 30, "#b48a2c", 60, "#d9381e", 80, "#5a1409"],
+          "fill-color": ["case", ["<", ["coalesce", ["get", "score"], -1], 0], "#64748b", ["step", ["get", "score"], "#8d9d90", 30, "#b48a2c", 60, "#d9381e", 80, "#5a1409"]],
         },
       });
       map.addLayer({
@@ -109,6 +122,7 @@ export default function ParcelMap({
       map.on("mouseenter", "parcels-fill", () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", "parcels-fill", () => (map.getCanvas().style.cursor = ""));
       setReady(true);
+      reportBounds();
     });
 
     return () => {
@@ -125,7 +139,7 @@ export default function ParcelMap({
       type: "FeatureCollection" as const,
       features: parcels.map((p) => ({
         type: "Feature" as const,
-        geometry: { type: "Polygon" as const, coordinates: p.coordinates },
+        geometry: p.geometry ?? { type: "Polygon" as const, coordinates: p.coordinates },
         properties: { id: p.id, score: p.score },
       })),
     });
@@ -135,7 +149,7 @@ export default function ParcelMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const f: maplibregl.FilterSpecification = [">=", ["get", "score"], minScore];
+    const f: maplibregl.FilterSpecification = minScore === 0 ? ["all"] : [">=", ["coalesce", ["get", "score"], -1], minScore];
     map.setFilter("parcels-fill", f);
     map.setFilter("parcels-line", f);
   }, [minScore, ready]);
@@ -146,7 +160,10 @@ export default function ParcelMap({
     if (!map || !ready) return;
     map.setFilter("parcels-selected", ["==", ["get", "id"], selectedId ?? ""]);
     const p = parcels.find((x) => x.id === selectedId);
-    if (p) map.flyTo({ center: centroid(p), zoom: 16.5, duration: 800 });
+    if (p && lastFocused.current !== selectedId) {
+      lastFocused.current = selectedId;
+      map.flyTo({ center: centroid(p), zoom: 16.5, duration: 800 });
+    }
   }, [selectedId, parcels, ready]);
 
   // Show the wrong listing pin for the selected parcel

@@ -13,11 +13,11 @@ export default function ParcelTable({
 }) {
   const [asc, setAsc] = useState(false);
   const rows = parcels
-    .filter((p) => p.score >= minScore)
-    .sort((a, b) => (asc ? a.score - b.score : b.score - a.score));
+    .filter((p) => minScore === 0 || (p.score !== null && p.score >= minScore))
+    .sort((a, b) => (asc ? (a.score ?? -1) - (b.score ?? -1) : (b.score ?? -1) - (a.score ?? -1)));
 
   return (
-    <div className="flex h-full flex-col bg-panel">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-panel">
       <div className="flex items-baseline justify-between border-b border-line px-4 py-2">
         <h2 className="font-serif text-lg font-semibold">Parcels</h2>
         <span className="text-sm text-soft">{rows.length} shown</span>
@@ -47,13 +47,13 @@ export default function ParcelTable({
                   onKeyDown={(e) => e.key === "Enter" && onSelect(p.id)}
                   className={`cursor-pointer border-b border-line hover:bg-paper ${p.id === selectedId ? "bg-paper font-medium" : ""}`}
                 >
-                  <td className="px-4 py-2">{p.address}</td>
+                  <td className="px-4 py-2">{p.address}<span className="block text-xs text-soft">Property ID: {p.id}</span></td>
                   <td className="px-2 py-2 text-soft">{p.owner}</td>
                   <td className="px-2 py-2 whitespace-nowrap">
                     <i className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: lv.color }} />
-                    <span className="tabular-nums">{p.score}</span> {lv.label}
+                    <span className="tabular-nums">{p.score ?? "—"}</span> {lv.label}
                   </td>
-                  <td className="px-2 py-2 text-soft">{p.findings[0]?.text ?? "None found"}</td>
+                  <td className="px-2 py-2 text-soft">{p.findings[0]?.text ?? "Not assessed"}</td>
                 </tr>
               );
             })}
